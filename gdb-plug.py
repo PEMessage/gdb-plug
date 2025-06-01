@@ -1,21 +1,20 @@
 import os
 import traceback
-import glob
 import subprocess
 import gdb
-from urllib.parse import urlparse
 
 
 class PlugManager:
     """Non-singleton plugin manager implementation"""
 
     def __init__(self, plug_home=None, autoload=None):
-        self.plug_home = plug_home or os.environ.get("GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug")
-        self.autoload = autoload or os.environ.get("GDB_PLUG_AUTOLOAD", "").split(",")
+        self.init = {
+            'plug_home': plug_home or os.environ.get("GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug"),
+            'autoload': autoload or os.environ.get("GDB_PLUG_AUTOLOAD", "").split(","),
+        }
 
-        self._plugins = {}
-        os.makedirs(self.plug_home, exist_ok=True)
-
+        self.plug_infos = {}
+        os.makedirs(self.init['plug_home'], exist_ok=True)
 
     def plug(self, repo,
              name=None, directory=None,
@@ -23,26 +22,26 @@ class PlugManager:
              **kwargs):
         """Register a plugin repository"""
         name = name or repo.split('/')[-1]
-        directory = directory or os.path.join(self.plug_home, name)
+        directory = directory or os.path.join(self.init['plug_home'], name)
         config = {
             'repo': repo,
             'directory': directory,
-            'autoload': autoload,  # Whether to autoload-load this plugin
+            'autoload': autoload,  # Whether to autoload this plugin
             **kwargs
         }
-        self._plugins[name] = config
+        self.plug_infos[name] = config
         return self
 
     def update(self, names=None):
         """Update specified plugins or all plugins"""
-        names = names or list(self._plugins.keys())
+        names = names or list(self.plug_infos.keys())
 
         for name in names:
-            if name not in self._plugins:
+            if name not in self.plug_infos:
                 print(f"Plugin not registered: {name}")
                 continue
 
-            plugin = self._plugins[name]
+            plugin = self.plug_infos[name]
             repo_dir = plugin['directory']
 
             if not os.path.exists(repo_dir):
@@ -69,27 +68,25 @@ class PlugManager:
                     continue
                 print(f"Updated {name}")
 
-
     def end(self):
-        """Load specified plugins or all autoload-load plugins"""
-        # Load all autoload-load plugins, or define in GDB_PLUG_AUTOLOAD
+        """Load specified plugins or all autoload plugins"""
+        # Load all autoload plugins, or define in GDB_PLUG_AUTOLOAD
         names_to_load = [
                 name
-                for name, plugin in self._plugins.items()
+                for name, plugin in self.plug_infos.items()
                 if
                     plugin.get('autoload')
                     or
-                    name in self.autoload
+                    name in self.init['autoload']
                 ]
 
         for name in names_to_load:
             self.load(name)
 
-
     def load(self, name):
         """Load a plugin by name"""
 
-        plugin = self._plugins.get(name)
+        plugin = self.plug_infos.get(name)
         if not plugin:
             print(f"Plugin not registered: {name}")
             return False
@@ -137,7 +134,7 @@ class PlugManager:
                 'autoload': plugin.get('autoload', True),
                 'installed': os.path.exists(plugin['directory'])
             }
-            for name, plugin in self._plugins.items()
+            for name, plugin in self.plug_infos.items()
         ]
 
 
@@ -152,7 +149,6 @@ class Plug:
             cls._instance = cls()
             cls._instance._manager = PlugManager(*args, **kwargs)
         return cls._instance
-
 
     def __new__(cls):
         if cls._instance is None:
@@ -210,7 +206,6 @@ class PlugCommand(gdb.Command):
         else:
             print(f"Unknown subcommand: {subcommand}")
 
-
     def _update(self, *args, **kargs):
         """Update specified plugins or all plugins"""
         Plug.update(*args, **kargs)
@@ -225,20 +220,17 @@ class PlugCommand(gdb.Command):
 
     def complete(self, text, word):
         """Provide tab completion for subcommands and plugin names"""
-
         # print(f"\ntext is '{text}'")
         # print(f"\nword is '{word}'")
-
         parts = gdb.string_to_argv(text)
         extra = 1 if word is None else 0
         pword = word or ''
 
         if len(parts) + extra <= 1:
             pword = word or ''
-            return [cmd for cmd in [ 'update', 'list', 'load'] if cmd.startswith(pword)]
+            return [cmd for cmd in ['update', 'list', 'load'] if cmd.startswith(pword)]
         if len(parts) + extra == 2:
-            return [ plug['name'] for plug in Plug.list() if plug['name'].startswith(pword) ]
-
+            return [plug['name'] for plug in Plug.list() if plug['name'].startswith(pword)]
 
         return []
 
