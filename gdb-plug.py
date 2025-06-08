@@ -7,22 +7,24 @@ import gdb
 class PlugManager:
     """Non-singleton plugin manager implementation"""
 
-    def __init__(self, plug_home=None, autoload=None):
-        self.init = {
-            'plug_home': plug_home or os.environ.get("GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug"),
-            'autoload': autoload or os.environ.get("GDB_PLUG_AUTOLOAD", "").split(","),
-        }
+    def __init__(self, **kargs):
+        class PlugInitConfig(dict):
+            def __init__(self, home=None, autoload=None, uri_format=None):
+                self["home"] = home or os.environ.get("GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug")
+                self["autoload"] = autoload or os.environ.get("GDB_PLUG_AUTOLOAD") or True,
+                self["uri_format"] = uri_format or "https://git::@github.com/{}.git"
+        self.init = PlugInitConfig(**kargs)
 
         self.plug_infos = {}
-        os.makedirs(self.init['plug_home'], exist_ok=True)
+        os.makedirs(self.init["home"], exist_ok=True)
 
     def plug(self, repo,
              name=None, directory=None,
-             autoload=False,
+             autoload=None,
              **kwargs):
         """Register a plugin repository"""
         name = name or repo.split('/')[-1]
-        directory = directory or os.path.join(self.init['plug_home'], name)
+        directory = directory or os.path.join(self.init["home"], name)
         config = {
             'repo': repo,
             'directory': directory,
@@ -77,8 +79,9 @@ class PlugManager:
                 if
                     plugin.get('autoload')
                     or
-                    name in self.init['autoload']
+                    self.init["autoload"]
                 ]
+        print(names_to_load)
 
         for name in names_to_load:
             self.load(name)
@@ -103,7 +106,7 @@ class PlugManager:
             os.path.join(plugin_dir, "main.py"),
             os.path.join(plugin_dir, "main.gdb"),
             os.path.join(plugin_dir, ".gdbinit"),
-            os.path.join(plugin_dir, f"gdbinit-{name.lower()}.py"), # for example gdbinit-gep.py
+            os.path.join(plugin_dir, f"gdbinit-{name.lower()}.py"),  # for example gdbinit-gep.py # noqa: E501
         ]
 
         loaded = False
