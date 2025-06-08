@@ -2,6 +2,7 @@ import os
 import traceback
 import subprocess
 import gdb
+import re
 
 
 class PlugManager:
@@ -9,27 +10,66 @@ class PlugManager:
 
     def __init__(self, **kargs):
         class PlugInitConfig(dict):
+            """Store init config, and infer plug config base on init config
+            """
+
             def __init__(self, home=None, autoload=None, uri_format=None):
-                self["home"] = home or os.environ.get("GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug")
-                self["autoload"] = autoload or os.environ.get("GDB_PLUG_AUTOLOAD") or True,
+                self["home"] = home or os.environ.get(
+                    "GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug")
+                self["autoload"] = autoload or os.environ.get(
+                    "GDB_PLUG_AUTOLOAD") or True,
                 self["uri_format"] = uri_format or "https://git::@github.com/{}.git"
+
+            @staticmethod
+            def is_local_plug(repo):
+                # 1. start with windows drive name E.g: 'C:' 'D:'
+                # 2. start with uinx path name E.g: '%' '/home' '~/.config'
+                return bool(re.match(r'^[a-zA-Z]:|^[%~/]', repo))
+
+            # Some extra function to infer each plug config, base on init config
+            # ==================================================================
+            def infer_name(self, repo):
+                bn = repo.split('/')[-1]  # basename
+                # remove tail .git
+                bn = bn[:-4] if bn.endswith('.git') else bn
+                return bn
+
+            def infer_directory(self, name, repo):
+                # 1. Local dir(only directory)
+                if self.is_local_plug(repo):
+                    return {
+                            'directory': repo.rstrip('/')
+                            }
+                # 2. Remote repo(directort, uri)
+                if ':' in repo:
+                    uri = repo
+                else:
+                    if '/' not in repo:
+                        raise ValueError(f"Invalid argument: {repo}")
+                    uri = self["uri_format"].format(repo)
+                return {
+                        'uri': uri,
+                        'directory': os.path.join(self["home"], name)
+                        }
+
+            def infer_kv(self, key, value):
+                return value if value is not None else self[key]
+
         self.init = PlugInitConfig(**kargs)
 
         self.plug_infos = {}
         os.makedirs(self.init["home"], exist_ok=True)
 
     def plug(self, repo,
-             name=None, directory=None,
-             autoload=None,
-             **kwargs):
+             name=None,
+             autoload=None):
         """Register a plugin repository"""
-        name = name or repo.split('/')[-1]
-        directory = directory or os.path.join(self.init["home"], name)
+        name = name or self.init.infer_name(repo)
+        directory = self.init.infer_directory(name, repo)
         config = {
             'repo': repo,
-            'directory': directory,
-            'autoload': autoload,  # Whether to autoload this plugin
-            **kwargs
+            'autoload': self.init.infer_kv("autoload", autoload),
+            **directory,
         }
         self.plug_infos[name] = config
         return self
@@ -74,13 +114,13 @@ class PlugManager:
         """Load specified plugins or all autoload plugins"""
         # Load all autoload plugins, or define in GDB_PLUG_AUTOLOAD
         names_to_load = [
-                name
-                for name, plugin in self.plug_infos.items()
-                if
-                    plugin.get('autoload')
-                    or
-                    self.init["autoload"]
-                ]
+            name
+            for name, plugin in self.plug_infos.items()
+            if
+            plugin.get('autoload')
+            or
+            self.init["autoload"]
+        ]
         print(names_to_load)
 
         for name in names_to_load:
@@ -96,7 +136,8 @@ class PlugManager:
 
         plugin_dir = plugin['directory']
         if not os.path.exists(plugin_dir):
-            print(f"Plugin not installed: {name}. Run 'Plug update' to install.")
+            print(f"Plugin not installed: {
+                  name}. Run 'Plug update' to install.")
             return False
 
         # Look for initialization files
@@ -189,7 +230,8 @@ class PlugCommand(gdb.Command):
     """GDB command interface for plugin management"""
 
     def __init__(self):
-        super(PlugCommand, self).__init__("Plug", gdb.COMMAND_USER, prefix=True)
+        super(PlugCommand, self).__init__(
+            "Plug", gdb.COMMAND_USER, prefix=True)
 
     def invoke(self, arg, from_tty):
         args = gdb.string_to_argv(arg)
@@ -236,6 +278,7 @@ class PlugCommand(gdb.Command):
             return [plug['name'] for plug in Plug.list() if plug['name'].startswith(pword)]
 
         return []
+
 
 # Register the command
 PlugCommand()
