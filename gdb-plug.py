@@ -16,8 +16,13 @@ class PlugManager:
             def __init__(self, home=None, autoload=None, uri_format=None):
                 self["home"] = home or os.environ.get(
                     "GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug")
-                self["autoload"] = autoload or os.environ.get(
-                    "GDB_PLUG_AUTOLOAD") or True,
+
+                if autoload is not None:
+                    self["autoload"] = autoload
+                else:
+                    self["autoload"] = os.environ.get(
+                        "GDB_PLUG_AUTOLOAD") or True,
+
                 self["uri_format"] = uri_format or "https://git::@github.com/{}.git"
 
             @staticmethod
@@ -118,8 +123,6 @@ class PlugManager:
             for name, plugin in self.plug_infos.items()
             if
             plugin.get('autoload')
-            or
-            self.init["autoload"]
         ]
         print(names_to_load)
 
