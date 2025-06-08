@@ -43,8 +43,8 @@ class PlugManager:
                 # 1. Local dir(only directory)
                 if self.is_local_plug(repo):
                     return {
-                            'directory': repo.rstrip('/')
-                            }
+                        'directory': repo.rstrip('/')
+                    }
                 # 2. Remote repo(directort, uri)
                 if ':' in repo:
                     uri = repo
@@ -53,9 +53,26 @@ class PlugManager:
                         raise ValueError(f"Invalid argument: {repo}")
                     uri = self["uri_format"].format(repo)
                 return {
-                        'uri': uri,
-                        'directory': os.path.join(self["home"], name)
-                        }
+                    'uri': uri,
+                    'directory': os.path.join(self["home"], name)
+                }
+
+            def infer_autoload(self, name):
+                if not isinstance(self["autoload"], str):
+                    return self["autoload"]
+                else:
+                    if self["autoload"] == "1":
+                        return True
+                    # tv: true's value
+                    elif any(
+                        [True for tv in ["all", "true"]
+                            if tv in self["autoload"].lower()]
+                    ):
+                        return True
+                    elif name in self["autoload"]:
+                        return True
+                    else:
+                        return False
 
             def infer_kv(self, key, value):
                 return value if value is not None else self[key]
@@ -73,8 +90,8 @@ class PlugManager:
         directory = self.init.infer_directory(name, repo)
         config = {
             'repo': repo,
-            'autoload': self.init.infer_kv("autoload", autoload),
-            **directory,
+            'autoload': autoload or self.init.infer_autoload(self, name)
+            ** directory,
         }
         self.plug_infos[name] = config
         return self
