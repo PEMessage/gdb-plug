@@ -6,20 +6,12 @@ import re
 
 
 class PlugInitConfig(dict):
-    """Store init config, and infer plug config base on init config
-    """
+    """Store init config, and infer plug config based on init config"""
 
     def __init__(self, home=None, autoload=None, uri_format=None):
-        self["home"] = home or os.environ.get(
-            "GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug")
-
-        if autoload is not None:
-            self["autoload"] = autoload
-        else:
-            self["autoload"] = os.environ.get(
-                "GDB_PLUG_AUTOLOAD") or True,
-
-        self["uri_format"] = uri_format or "https://git::@github.com/{}.git"
+        self['home'] = home or os.getenv('GDB_PLUG_HOME', os.path.expanduser('~/.config/gdb/plug'))
+        self['autoload'] = autoload if autoload is not None else os.getenv('GDB_PLUG_AUTOLOAD', True)
+        self['uri_format'] = uri_format or 'https://git::@github.com/{}.git'
 
     @staticmethod
     def is_local_plug(repo):
@@ -27,8 +19,6 @@ class PlugInitConfig(dict):
         # 2. start with uinx path name E.g: '%' '/home' '~/.config'
         return bool(re.match(r'^[a-zA-Z]:|^[%~/]', repo))
 
-    # Some extra function to infer each plug config, base on init config
-    # ==================================================================
     def infer_name(self, repo):
         bn = repo.split('/')[-1]  # basename
         # remove tail .git
