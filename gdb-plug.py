@@ -73,6 +73,16 @@ class PlugInitConfig(dict):
     def infer_kv(self, key, value):
         return value if value is not None else self[key]
 
+    def infer_config(self, repo, name=None, autoload=None):
+        name = name or self.infer_name(repo)
+        directory = self.infer_directory(name, repo)
+        config = {
+            'repo': repo,
+            'autoload': autoload or self.infer_autoload(name)
+        }
+        config.update(directory)
+        return config
+
 
 class PlugManager:
     """Non-singleton plugin manager implementation"""
@@ -83,18 +93,10 @@ class PlugManager:
         self.plug_infos = {}
         os.makedirs(self.init["home"], exist_ok=True)
 
-    def plug(self, repo,
-             name=None,
-             autoload=None):
+    def plug(self, repo, **kargs):
         """Register a plugin repository"""
-        name = name or self.init.infer_name(repo)
-        directory = self.init.infer_directory(name, repo)
-        config = {
-            'repo': repo,
-            'autoload': autoload or self.init.infer_autoload(name)
-        }
-        config.update(directory)
-        self.plug_infos[name] = config
+        config = self.init.infer_config(repo, **kargs)
+        self.plug_infos[config['repo']] = config
         return self
 
     def update(self, names=None):
