@@ -90,9 +90,9 @@ class PlugManager:
         directory = self.init.infer_directory(name, repo)
         config = {
             'repo': repo,
-            'autoload': autoload or self.init.infer_autoload(self, name)
-            ** directory,
+            'autoload': autoload or self.init.infer_autoload(name)
         }
+        config.update(directory)
         self.plug_infos[name] = config
         return self
 
