@@ -5,78 +5,79 @@ import gdb
 import re
 
 
+class PlugInitConfig(dict):
+    """Store init config, and infer plug config base on init config
+    """
+
+    def __init__(self, home=None, autoload=None, uri_format=None):
+        self["home"] = home or os.environ.get(
+            "GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug")
+
+        if autoload is not None:
+            self["autoload"] = autoload
+        else:
+            self["autoload"] = os.environ.get(
+                "GDB_PLUG_AUTOLOAD") or True,
+
+        self["uri_format"] = uri_format or "https://git::@github.com/{}.git"
+
+    @staticmethod
+    def is_local_plug(repo):
+        # 1. start with windows drive name E.g: 'C:' 'D:'
+        # 2. start with uinx path name E.g: '%' '/home' '~/.config'
+        return bool(re.match(r'^[a-zA-Z]:|^[%~/]', repo))
+
+    # Some extra function to infer each plug config, base on init config
+    # ==================================================================
+    def infer_name(self, repo):
+        bn = repo.split('/')[-1]  # basename
+        # remove tail .git
+        bn = bn[:-4] if bn.endswith('.git') else bn
+        return bn
+
+    def infer_directory(self, name, repo):
+        # 1. Local dir(only directory)
+        if self.is_local_plug(repo):
+            return {
+                'directory': repo.rstrip('/')
+            }
+        # 2. Remote repo(directort, uri)
+        if ':' in repo:
+            uri = repo
+        else:
+            if '/' not in repo:
+                raise ValueError(f"Invalid argument: {repo}")
+            uri = self["uri_format"].format(repo)
+        return {
+            'uri': uri,
+            'directory': os.path.join(self["home"], name)
+        }
+
+    def infer_autoload(self, name):
+        if not isinstance(self["autoload"], str):
+            return self["autoload"]
+        else:
+            if self["autoload"] == "1":
+                return True
+            # tv: true's value
+            elif any(
+                [True for tv in ["all", "true"]
+                    if tv in self["autoload"].lower()]
+            ):
+                return True
+            elif name in self["autoload"]:
+                return True
+            else:
+                return False
+
+    def infer_kv(self, key, value):
+        return value if value is not None else self[key]
+
+
 class PlugManager:
     """Non-singleton plugin manager implementation"""
 
     def __init__(self, **kargs):
-        class PlugInitConfig(dict):
-            """Store init config, and infer plug config base on init config
-            """
-
-            def __init__(self, home=None, autoload=None, uri_format=None):
-                self["home"] = home or os.environ.get(
-                    "GDB_PLUG_HOME") or os.path.expanduser("~/.config/gdb/plug")
-
-                if autoload is not None:
-                    self["autoload"] = autoload
-                else:
-                    self["autoload"] = os.environ.get(
-                        "GDB_PLUG_AUTOLOAD") or True,
-
-                self["uri_format"] = uri_format or "https://git::@github.com/{}.git"
-
-            @staticmethod
-            def is_local_plug(repo):
-                # 1. start with windows drive name E.g: 'C:' 'D:'
-                # 2. start with uinx path name E.g: '%' '/home' '~/.config'
-                return bool(re.match(r'^[a-zA-Z]:|^[%~/]', repo))
-
-            # Some extra function to infer each plug config, base on init config
-            # ==================================================================
-            def infer_name(self, repo):
-                bn = repo.split('/')[-1]  # basename
-                # remove tail .git
-                bn = bn[:-4] if bn.endswith('.git') else bn
-                return bn
-
-            def infer_directory(self, name, repo):
-                # 1. Local dir(only directory)
-                if self.is_local_plug(repo):
-                    return {
-                        'directory': repo.rstrip('/')
-                    }
-                # 2. Remote repo(directort, uri)
-                if ':' in repo:
-                    uri = repo
-                else:
-                    if '/' not in repo:
-                        raise ValueError(f"Invalid argument: {repo}")
-                    uri = self["uri_format"].format(repo)
-                return {
-                    'uri': uri,
-                    'directory': os.path.join(self["home"], name)
-                }
-
-            def infer_autoload(self, name):
-                if not isinstance(self["autoload"], str):
-                    return self["autoload"]
-                else:
-                    if self["autoload"] == "1":
-                        return True
-                    # tv: true's value
-                    elif any(
-                        [True for tv in ["all", "true"]
-                            if tv in self["autoload"].lower()]
-                    ):
-                        return True
-                    elif name in self["autoload"]:
-                        return True
-                    else:
-                        return False
-
-            def infer_kv(self, key, value):
-                return value if value is not None else self[key]
-
         self.init = PlugInitConfig(**kargs)
 
         self.plug_infos = {}
