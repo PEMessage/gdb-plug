@@ -29,6 +29,7 @@ class PlugInitConfig(dict):
         # 1. Local dir(only directory)
         if self.is_local_plug(repo):
             return {
+                'uri': None,
                 'directory': repo.rstrip('/')
             }
         # 2. Remote repo(directort, uri)
@@ -67,6 +68,7 @@ class PlugInitConfig(dict):
         name = name or self.infer_name(repo)
         directory = self.infer_directory(name, repo)
         config = {
+            'name': name,
             'repo': repo,
             'autoload': autoload or self.infer_autoload(name)
         }
@@ -86,7 +88,7 @@ class PlugManager:
     def plug(self, repo, **kargs):
         """Register a plugin repository"""
         config = self.init.infer_config(repo, **kargs)
-        self.plug_infos[config['repo']] = config
+        self.plug_infos[config['name']] = config
         return self
 
     def update(self, names=None):
@@ -100,14 +102,18 @@ class PlugManager:
 
             plugin = self.plug_infos[name]
             repo_dir = plugin['directory']
+            repo_uri = plugin['uri']
+
+            if repo_uri is None:
+                print("Not a remote repo, do nothing...")
+                return
 
             if not os.path.exists(repo_dir):
                 print(f"Installing {name}...")
-                repo_url = f"https://github.com/{plugin['repo']}.git"
                 result = subprocess.run(
-                    ['git', 'clone', repo_url, repo_dir],
-                    capture_output=True,
-                    text=True
+                    ['git', 'clone', repo_uri, repo_dir],
+                    # capture_output=True,
+                    # text=True
                 )
                 if result.returncode != 0:
                     print(f"Failed to install {name}: {result.stderr}")
@@ -149,8 +155,7 @@ class PlugManager:
 
         plugin_dir = plugin['directory']
         if not os.path.exists(plugin_dir):
-            print(f"Plugin not installed: {
-                  name}. Run 'Plug update' to install.")
+            print(f"Plugin not installed: {name}. Run 'Plug update' to install.")
             return False
 
         # Look for initialization files
