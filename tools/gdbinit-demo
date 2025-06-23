@@ -1,0 +1,7 @@
+# gdb -nx -ex 'source tools/gdbinit-demo'
+source gdb-plug.py
+python
+Plug.begin()
+Plug.plug("lebr0nli/GEP")
+Plug.end()
+end
