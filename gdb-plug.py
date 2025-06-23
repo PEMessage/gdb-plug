@@ -25,7 +25,7 @@ class PlugInitConfig(dict):
         bn = bn[:-4] if bn.endswith('.git') else bn
         return bn
 
-    def infer_directory(self, name, repo):
+    def infer_directory_uri(self, name, repo):
         # 1. Local dir(only directory)
         if self.is_local_plug(repo):
             return {
@@ -66,13 +66,13 @@ class PlugInitConfig(dict):
 
     def infer_config(self, repo, name=None, autoload=None):
         name = name or self.infer_name(repo)
-        directory = self.infer_directory(name, repo)
         config = {
             'name': name,
             'repo': repo,
             'autoload': autoload or self.infer_autoload(name)
         }
-        config.update(directory)
+        config_segment = self.infer_directory_uri(name, repo)
+        config.update(config_segment)
         return config
 
 
