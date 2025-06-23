@@ -45,18 +45,18 @@ class PlugInitConfig(dict):
         }
 
     @staticmethod
-    def infer_autoload(autoload, name):
-        if isinstance(autoload, bool):
-            return autoload
-        elif isinstance(autoload, int):
-            return bool(autoload)
-        elif isinstance(autoload, str):
-            autoload = autoload.split(',')
+    def infer_bool_bygroup(value, groups):
+        if isinstance(value, bool):
+            return value
+        elif isinstance(value, int):
+            return bool(value)
+        elif isinstance(value, str):
+            value = value.split(',')
             ret = False
-            for x in autoload:
-                if x.lower() in ["all", "true", "1", name, "+" + name ]:
+            for x in value:
+                if x.lower() in ["all", "true", "1"] + groups:
                     ret = True
-                if x.lower() in ["none", "false", "0", "-" + name]:
+                if x.lower() in ["none", "false", "0"] + ["-"+group for group in groups]:
                     ret = False
             return ret
         else:
@@ -65,12 +65,13 @@ class PlugInitConfig(dict):
     def infer_kv(self, key, value):
         return value if value is not None else self[key]
 
-    def infer_config(self, repo, name=None, autoload=None):
+    def infer_config(self, repo, name=None, autoload=None, groups=None):
+        groups = groups or []
         name = name or self.infer_name(repo)
         config = {
             'name': name,
             'repo': repo,
-            'autoload': self.infer_autoload(autoload or self["autoload"], name)
+            'autoload': self.infer_bool_bygroup(autoload or self["autoload"], [name] + groups)
         }
         config_segment = self.infer_directory_uri(name, repo)
         config.update(config_segment)
