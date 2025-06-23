@@ -44,22 +44,23 @@ class PlugInitConfig(dict):
             'directory': os.path.join(self["home"], name)
         }
 
-    def infer_autoload(self, name):
-        if not isinstance(self["autoload"], str):
-            return self["autoload"]
+    @staticmethod
+    def infer_autoload(autoload, name):
+        if isinstance(autoload, bool):
+            return autoload
+        elif isinstance(autoload, int):
+            return bool(autoload)
+        elif isinstance(autoload, str):
+            autoload = autoload.split(',')
+            ret = False
+            for x in autoload:
+                if x.lower() in ["all", "true", "1", name, "+" + name ]:
+                    ret = True
+                if x.lower() in ["none", "false", "0", "-" + name]:
+                    ret = False
+            return ret
         else:
-            if self["autoload"] == "1":
-                return True
-            # tv: true's value
-            elif any(
-                [True for tv in ["all", "true"]
-                    if tv in self["autoload"].lower()]
-            ):
-                return True
-            elif name in self["autoload"]:
-                return True
-            else:
-                return False
+            return False
 
     def infer_kv(self, key, value):
         return value if value is not None else self[key]
@@ -69,7 +70,7 @@ class PlugInitConfig(dict):
         config = {
             'name': name,
             'repo': repo,
-            'autoload': autoload or self.infer_autoload(name)
+            'autoload': self.infer_autoload(autoload or self["autoload"], name)
         }
         config_segment = self.infer_directory_uri(name, repo)
         config.update(config_segment)
