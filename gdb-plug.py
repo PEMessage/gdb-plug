@@ -286,16 +286,16 @@ class PlugCommand(gdb.Command):
         # print(f"\ntext is '{text}'")
         # print(f"\nword is '{word}'")
         parts = gdb.string_to_argv(text)
-        extra = 1 if word is None else 0
+        # extra = 1 if word is None else 0
         pword = word or ''
 
-        if len(parts) + extra <= 1:
-            pword = word or ''
-            return [cmd for cmd in ['update', 'list', 'load'] if cmd.startswith(pword)]
-        if len(parts) + extra == 2:
+        subcmd = ['update', 'list', 'load']
+        if parts[0] in subcmd:
             return [plug['name'] for plug in Plug.list() if plug['name'].startswith(pword)]
+        else:
+            return [cmd for cmd in ['update', 'list', 'load'] if cmd.startswith(pword)]
 
-        return []
+
 
 
 # Register the command
