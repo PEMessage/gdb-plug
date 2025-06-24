@@ -118,6 +118,7 @@ class PlugManager:
     def update(self, names=None):
         """Update specified plugins or all plugins"""
         names = names or list(self.plug_infos.keys())
+        names = names.split(',') if isinstance(names, str) else names
 
         for name in names:
             if name not in self.plug_infos:
@@ -164,7 +165,7 @@ class PlugManager:
             if
             plugin.get('autoload')
         ]
-        # print(names_to_load)
+        print(names_to_load)
 
         for name in names_to_load:
             self.load(name)
