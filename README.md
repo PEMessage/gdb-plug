@@ -1,4 +1,4 @@
-# GDB-Plug
+# GDBPlug
 
 A minimalist plugin manager for GDB, inspired by vim-plug.
 

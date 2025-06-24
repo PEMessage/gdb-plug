@@ -1,5 +1,5 @@
 def main():
-    print("Hello from gdb-plug!")
+    print("Hello from gdbplug!")
 
 
 if __name__ == "__main__":
