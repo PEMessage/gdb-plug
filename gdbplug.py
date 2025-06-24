@@ -164,7 +164,7 @@ class PlugManager:
             if
             plugin.get('autoload')
         ]
-        print(names_to_load)
+        # print(names_to_load)
 
         for name in names_to_load:
             self.load(name)
@@ -210,18 +210,10 @@ class PlugManager:
 
         return True
 
-    def list(self):
+    def list(self, name=None):
         """Return information about registered plugins"""
-        return [
-            {
-                'name': name,
-                'repo': plugin['repo'],
-                'directory': plugin['directory'],
-                'autoload': plugin.get('autoload', True),
-                'installed': os.path.exists(plugin['directory'])
-            }
-            for name, plugin in self.plug_infos.items()
-        ]
+        name_to_list = name or self.plug_infos.keys()
+        return [plug for name, plug in self.plug_infos.items() if name in name_to_list]
 
 
 class Plug:
@@ -269,6 +261,7 @@ class Plug:
 
 
 if RUNING_IN_GDB is True:
+    import pprint
     class PlugCommand(gdb.Command):
         """GDB command interface for plugin management"""
 
@@ -300,7 +293,7 @@ if RUNING_IN_GDB is True:
 
         def _list(self, *args, **kargs):
             """List registered plugins"""
-            print(Plug.list(*args, **kargs))
+            pprint.pprint(Plug.list(*args, **kargs), indent=1)
 
         def _load(self, *args, **kargs):
             """Load specific plugins"""
