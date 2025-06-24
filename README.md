@@ -26,15 +26,43 @@ echo "source /path/to/gdb_plug.py" >> ~/.gdbinit
 Add plugin declarations to your `.gdbinit`:
 
 ```python
+python
+import os
+import subprocess
+import sys
+
+# Auto install at first run
+def load_gdbplug():
+    # Path configurations
+    plugin_dir = os.path.expanduser("~/.config/gdb")
+    plugin_path = os.path.join(plugin_dir, "gdbplug.py")
+    raw_plugin_url = "https://raw.githubusercontent.com/PEMessage/gdbplug/main/gdbplug.py"
+    if not os.path.exists(plugin_path):
+        print("Installing gdbplug...")
+        try:
+            os.makedirs(plugin_dir, exist_ok=True)
+            subprocess.run([
+                "curl", "-fLo", plugin_path,
+                "--create-dirs", raw_plugin_url
+                ], check=True)
+        except Exception as e:
+            print(f"Installation failed: {e}")
+            sys.exit(1)
+    import gdb as G
+    G.execute("source {}".format(plugin_path))
+load_gdbplug()
+
 # Initialize plugin manager
-Plug.begin(autoload=true)
+Plug.begin(autoload=True) # global configuration
 
 # Register plugins
-Plug.plug("hugsy/gef")  # Autoload by default
-Plug.plug("cyrus-and/gdb-dashboard", autoload=True)  # Manual load
+if True:
+    Plug.plug("hugsy/gef")  # Autoload by default
+    Plug.plug("cyrus-and/gdb-dashboard", autoload=False)  # per-plug configuration
 
 # Load all autoload plugins
 Plug.end()
+end
 ```
 
 ### Commands
@@ -55,6 +83,7 @@ When registering a plugin with `Plug.plug()`:
 ## Environment Variables
 
 - `GDB_PLUG_HOME`: Custom plugin installation directory (default: `~/.config/gdb/plug`)
+- `GDB_PLUG_AUTOLOAD`: Overwirte global autoload configuration
 
 ## Example Workflow
 
@@ -76,7 +105,7 @@ Plug.end()
 3. Manually load a plugin (if not autoloaded):
 
 ```
-(gdb) Plug load gdb-dashboard
+(gdb) Plug load GEP
 ```
 
 4. List installed plugins:
