@@ -1,8 +1,13 @@
 import os
 import traceback
 import subprocess
-import gdb
 import re
+try:
+    import gdb as gdb
+    RUNING_IN_GDB = True
+except ImportError:
+    import mockgdb as gdb
+    RUNING_IN_GDB = False
 
 
 class PlugInitConfig(dict):
@@ -263,62 +268,65 @@ class Plug:
         return cls()._manager.list(*args, **kwargs)
 
 
-class PlugCommand(gdb.Command):
-    """GDB command interface for plugin management"""
+if RUNING_IN_GDB is True:
+    class PlugCommand(gdb.Command):
+        """GDB command interface for plugin management"""
 
-    def __init__(self):
-        super(PlugCommand, self).__init__(
-            "Plug", gdb.COMMAND_USER, prefix=True)
+        def __init__(self):
+            super(PlugCommand, self).__init__(
+                "Plug", gdb.COMMAND_USER, prefix=True)
 
-    def invoke(self, arg, from_tty):
-        args = gdb.string_to_argv(arg)
-        if not args:
-            print("Usage: Plug <subcommand> [args...]")
-            print("Available subcommands: install, update, list, load")
-            return
+        def invoke(self, arg, from_tty):
+            args = gdb.string_to_argv(arg)
+            if not args:
+                print("Usage: Plug <subcommand> [args...]")
+                print("Available subcommands: install, update, list, load")
+                return
 
-        subcommand = args[0].lower()
+            subcommand = args[0].lower()
 
-        if subcommand == "update":
-            self._update(*args[1:])
-        elif subcommand == "list":
-            self._list(*args[1:])
-        elif subcommand == "load":
-            self._load(*args[1:])
-        else:
-            print(f"Unknown subcommand: {subcommand}")
+            if subcommand == "update":
+                self._update(*args[1:])
+            elif subcommand == "list":
+                self._list(*args[1:])
+            elif subcommand == "load":
+                self._load(*args[1:])
+            else:
+                print(f"Unknown subcommand: {subcommand}")
 
-    def _update(self, *args, **kargs):
-        """Update specified plugins or all plugins"""
-        Plug.update(*args, **kargs)
+        def _update(self, *args, **kargs):
+            """Update specified plugins or all plugins"""
+            Plug.update(*args, **kargs)
 
-    def _list(self, *args, **kargs):
-        """List registered plugins"""
-        print(Plug.list(*args, **kargs))
+        def _list(self, *args, **kargs):
+            """List registered plugins"""
+            print(Plug.list(*args, **kargs))
 
-    def _load(self, *args, **kargs):
-        """Load specific plugins"""
-        Plug.load(*args, **kargs)
+        def _load(self, *args, **kargs):
+            """Load specific plugins"""
+            Plug.load(*args, **kargs)
 
-    def complete(self, text, word):
-        """Provide tab completion for subcommands and plugin names"""
-        # print(f"\ntext is '{text}'")
-        # print(f"\nword is '{word}'")
-        parts = gdb.string_to_argv(text)
-        # extra = 1 if word is None else 0
-        pword = word or ''
+        def complete(self, text, word):
+            """Provide tab completion for subcommands and plugin names"""
+            # print(f"\ntext is '{text}'")
+            # print(f"\nword is '{word}'")
+            parts = gdb.string_to_argv(text)
+            # extra = 1 if word is None else 0
+            pword = word or ''
 
-        subcmd = ['update', 'list', 'load']
-        if parts[0] in subcmd:
-            return [plug['name'] for plug in Plug.list() if plug['name'].startswith(pword)]
-        else:
-            return [cmd for cmd in ['update', 'list', 'load'] if cmd.startswith(pword)]
-
-
+            subcmd = ['update', 'list', 'load']
+            if parts[0] in subcmd:
+                return [plug['name'] for plug in Plug.list() if plug['name'].startswith(pword)]
+            else:
+                return [cmd for cmd in ['update', 'list', 'load'] if cmd.startswith(pword)]
 
 
-# Register the command
-PlugCommand()
+if __name__ == '__main__':
+    if RUNING_IN_GDB is True:
+        # Register the command
+        PlugCommand()
+    else:
+        pass
 
 # Example usage in .gdbinit:
 # Plug.plug("hugsy/gef")  # Autoload-load by default
