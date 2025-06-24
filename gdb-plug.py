@@ -9,15 +9,32 @@ class PlugInitConfig(dict):
     """Store init config, and infer plug config based on init config"""
 
     def __init__(self, home=None, autoload=None, uri_format=None):
-        self['home'] = home or os.getenv('GDB_PLUG_HOME', os.path.expanduser('~/.config/gdb/plug'))
-        self['autoload'] = autoload if autoload is not None else os.getenv('GDB_PLUG_AUTOLOAD', True)
-        self['uri_format'] = uri_format or 'https://git::@github.com/{}.git'
+        self['home'] = self.first_not_none(
+            os.getenv('GDB_PLUG_HOME'),
+            home,
+            os.path.expanduser('~/.config/gdb/plug')
+        )
+
+        self['autoload'] = self.first_not_none(
+            os.getenv('GDB_PLUG_AUTOLOAD'),
+            autoload,
+            True
+        )
+
+        self['uri_format'] = self.first_not_none(
+            uri_format,
+            'https://git::@github.com/{}.git'
+        )
 
     @staticmethod
     def is_local_plug(repo):
         # 1. start with windows drive name E.g: 'C:' 'D:'
         # 2. start with uinx path name E.g: '%' '/home' '~/.config'
         return bool(re.match(r'^[a-zA-Z]:|^[%~/]', repo))
+
+    @staticmethod
+    def first_not_none(*args):
+        return next((x for x in args if x is not None), None)
 
     def infer_name(self, repo):
         bn = repo.split('/')[-1]  # basename
